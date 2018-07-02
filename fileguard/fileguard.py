@@ -36,4 +36,11 @@ class _guard(object):
             return self.decorate_callable(func)
 
 def guard(path):
+    """Preserve the contents of a file.
+
+    Args:
+        path (path-like): The path of the file to be guarded. It must be
+        path-like, such as a string. In general, any object accepted by
+        `pathlib.Path` can be used.
+    """
     return _guard(path)

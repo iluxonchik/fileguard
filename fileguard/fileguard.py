@@ -16,8 +16,9 @@ class _guard(object):
     def __enter__(self):
         """Store original file contents"""
         self._store_original_content()
+        return self
 
-    def __exit__(self):
+    def __exit__(self, *exc_info):
         """Restore original file contents"""
         self._restore_original_content()
 

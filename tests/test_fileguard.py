@@ -71,6 +71,8 @@ class TestRestoreFileContentsDecorator(unittest.TestCase):
 
         mocked_func = Mock()
 
-        guard(TestRestoreFileContentsDecorator.TEST_TEXT_FILE_PATH)(mocked_func)(value_1, value_2)
+        pre_decorated = guard(TestRestoreFileContentsDecorator.TEST_TEXT_FILE_PATH)
+        decorated = pre_decorated(mocked_func)
+        result = decorated(value_1, value_2)
 
         mocked_func.assert_called_once_with(value_1, value_2)

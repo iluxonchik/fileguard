@@ -1,16 +1,14 @@
 from functools import wraps
 
-def guard(path):
-    """Preserve the contents of a file.
+class _guard(object):
 
-    Args:
-        path (path-like): The path of the file to be guarded. It must be
-        path-like, such as a string. In general, any object accepted by
-        `pathlib.Path` can be used.
-    """
-    def decorator(function):
-        @wraps(function)
+    def __init__(self, path):
+        self._path = path
+
+    def decorate_callable(self, func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
+            path = self._path
 
             orignal_file_contents = []
             with open(path, 'r') as file:
@@ -18,7 +16,7 @@ def guard(path):
                     orignal_file_contents.append(line)
 
             try:
-                function(*args, **kwargs)
+                func(*args, **kwargs)
             except Exception:
                 pass
 
@@ -27,4 +25,15 @@ def guard(path):
                     file.write(line)
 
         return wrapper
-    return decorator
+
+    def decorate_class(self):
+        raise NotImplemented('Class wrapper not yet implemented.')
+
+    def __call__(self, func):
+        if isinstance(func, type):
+            return self.decorate_class(func)
+        else:
+            return self.decorate_callable(func)
+
+def guard(path):
+    return _guard(path)

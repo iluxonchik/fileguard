@@ -98,3 +98,41 @@ class TestFileGuardDecorator(unittest.TestCase):
         result = decorated(value_1, value_2)
 
         mocked_func.assert_called_once_with(value_1, value_2)
+
+
+class TestFileGuardContextManager(unittest.TestCase):
+
+    TEST_TEXT_FILE_PATH = './tests/resources/test_text_file.txt'
+    TEST_FILE_CONTENTS = ['would\n', 'you do it\n', 'if my name was\n', 'dre\n']
+
+    def setUp(self):
+        with open(TestFileGuardContextManager.TEST_TEXT_FILE_PATH, 'w') as file:
+            file.writelines(TestFileGuardContextManager.TEST_FILE_CONTENTS)
+
+    def tearDown(self):
+        try:
+            os.remove(TestFileGuardContextManager.TEST_TEXT_FILE_PATH)
+        except FileNotFoundError:
+            pass
+
+    def _assert_file_content_equals(self, lines):
+        with open(TestFileGuardContextManager.TEST_TEXT_FILE_PATH, 'r') as file:
+            file_contents = file.readlines()
+
+        self.assertEqual(len(lines), len(file_contents))
+
+        for i in range(len(lines)):
+            self.assertEqual(lines[i], file_contents[i], f'File differs in line {i}')
+
+    def test_guard_change_text_file(self):
+
+        with guard(TestFileGuardContextManager.TEST_TEXT_FILE_PATH):
+            lines_to_write = ['of course\n', 'I would\n']
+            self._assert_file_content_equals(TestFileGuardContextManager.TEST_FILE_CONTENTS)
+
+            with open(TestFileGuardContextManager.TEST_TEXT_FILE_PATH, 'w') as file:
+                file.writelines(lines_to_write)
+
+            self._assert_file_content_equals(lines_to_write)
+
+        self._assert_file_content_equals(TestFileGuardContextManager.TEST_FILE_CONTENTS)

@@ -13,35 +13,39 @@ class _guard(object):
         else:
             return self.decorate_callable(func)
 
-    def _store_original_content(self, path):
+    def __enter__(self):
+        """Store original file contents"""
+        self._store_original_content()
+
+    def __exit__(self):
+        """Restore original file contents"""
+        self._restore_original_content()
+
+    def _store_original_content(self):
+        path = self._path
         orignal_file_contents = []
         with open(path, 'r') as file:
             for line in file:
                 orignal_file_contents.append(line)
         self._original[path] = orignal_file_contents
 
-    def _restore_original_content(self, path):
+    def _restore_original_content(self):
+        path = self._path
         orignal_file_contents = self._original[path]
 
-    def _restore_original_file_contents(self, path, orignal_file_contents):
         with open(path, 'w') as file:
             for line in orignal_file_contents:
                 file.write(line)
 
+
     def decorate_callable(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            path = self._path
-
-            self._store_original_content(path)
-
+            self.__enter__()
             try:
                 func(*args, **kwargs)
-            except Exception:
-                pass
-
-            self._restore_original_content(path)
-
+            finally:
+                self.__exit__()
         return wrapper
 
     def decorate_class(self):

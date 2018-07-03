@@ -1,15 +1,9 @@
 from functools import wraps
+from types import FunctionType
 from collections import defaultdict
 
 
 class _guard(object):
-
-    """
-    Ignored attributes explanation:
-        * __class__ - the class to which a class instance belongs. There is no
-            need to change that. If changed, it must be assigned a class.
-    """
-    IGNORED_ATTRS = ['__class__', '__new__']
 
     def __init__(self, path):
         self._path = path
@@ -58,15 +52,16 @@ class _guard(object):
         return wrapper
 
     def decorate_class(self, klass):
-        """File Guard every function call in the specified class"""
+        """File Guard every user-defined function in the specified class
+
+        Arguments:
+            * klass (class): The class to be file-guarded
+            """
         for attr in dir(klass):
-            if attr in _guard.IGNORED_ATTRS:
-                continue
 
             attr_value = getattr(klass, attr)
-
-            if not hasattr(attr_value, '__call__'):
-                continue
+            if not isinstance(attr_value, FunctionType):
+                            continue
 
             wrapped = self.decorate_callable(attr_value)
             setattr(klass, attr, wrapped)
@@ -74,6 +69,10 @@ class _guard(object):
 
 def guard(path):
     """Preserve the contents of a file.
+
+    Can be used as a function decorator, a context manager or a class decorator.
+    If used as a class decorator, all user-defined functions will be decorated,
+    i.e. all user functions will be file-guarded.
 
     Args:
         path (path-like): The path of the file to be guarded. It must be

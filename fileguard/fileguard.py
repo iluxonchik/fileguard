@@ -56,7 +56,11 @@ class _guard(object):
 
         Arguments:
             * klass (class): The class to be file-guarded
-            """
+        """
+        # NOTE: if decorating the __new__ method, keep in mind the following:
+        #   * https://stackoverflow.com/questions/34777773/typeerror-object-takes-no-parameters-after-defining-new
+        #   * https://github.com/python/cpython/blob/5a4bbcd479ce86f68bbe12bc8c16e3447f32e13a/Objects/typeobject.c#L3538
+
         for attr in dir(klass):
 
             attr_value = getattr(klass, attr)

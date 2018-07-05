@@ -148,6 +148,7 @@ class TestFileGuardClassDecorator(unittest.TestCase):
 
         TEXT_1 = ['The\n', 'Documentary\n']
         TEXT_2 = ['The\n', 'Doctor\'s\n', 'Advocate']
+        TEXT_3 = ['appended\n', 'content\n']
 
         def __init__(_self, value_1, value_2, test_case):
             _self._value_1 = value_1
@@ -177,6 +178,29 @@ class TestFileGuardClassDecorator(unittest.TestCase):
         def do_not_change_the_file(_self, value):
             _self._value_3 = 'L.A.X.'
             _self._value_3 = _self._value_3 + value
+
+        def append_text(_self):
+            lines_to_write = TestFileGuardClassDecorator.TheCodeumentary.TEXT_3
+
+            with open(TestFileGuardClassDecorator.TEST_TEXT_FILE_PATH, 'a') as file:
+                file.writelines(lines_to_write)
+
+            expected_content = TestFileGuardClassDecorator.TEST_FILE_CONTENTS + lines_to_write + lines_to_write
+
+            _self._test_case._assert_file_content_equals(expected_content)
+
+        def nested_write_call(_self):
+            lines_to_write = TestFileGuardClassDecorator.TheCodeumentary.TEXT_3
+
+            with open(TestFileGuardClassDecorator.TEST_TEXT_FILE_PATH, 'a') as file:
+                file.writelines(lines_to_write)
+
+            expected_content = TestFileGuardClassDecorator.TEST_FILE_CONTENTS + lines_to_write
+
+            _self._test_case._assert_file_content_equals(expected_content)
+            _self.append_text()
+            _self._test_case._assert_file_content_equals(expected_content)
+
 
     def setUp(self):
         with open(TestFileGuardClassDecorator.TEST_TEXT_FILE_PATH, 'w') as file:
@@ -214,4 +238,14 @@ class TestFileGuardClassDecorator(unittest.TestCase):
         self._assert_file_content_equals(TestFileGuardClassDecorator.TEST_FILE_CONTENTS)
 
         the_codeumentary._value_2 = 'value_3'
+        self._assert_file_content_equals(TestFileGuardClassDecorator.TEST_FILE_CONTENTS)
+
+    def test_fileguarded_callables_calling_fileguarded_callables(self):
+        """
+        Make sure that the when a decorated callable calls a decorated callable
+        within a class everything works as expectected. Internally, a stack is
+        used.
+        """
+        the_codeumentary = TestFileGuardClassDecorator.TheCodeumentary('value_1', 'value_2', self)
+        the_codeumentary.nested_write_call()
         self._assert_file_content_equals(TestFileGuardClassDecorator.TEST_FILE_CONTENTS)

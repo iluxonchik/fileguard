@@ -1,3 +1,8 @@
+import os
+import uuid
+import shutil
+import ntpath
+import tempfile
 from functools import wraps
 from types import FunctionType
 from collections import defaultdict
@@ -8,6 +13,7 @@ class _guard(object):
     def __init__(self, path):
         self._path = path
         self._original = {self._path: []}
+        self._tmp_dir = None
 
     def __call__(self, func):
         if isinstance(func, type):
@@ -24,22 +30,32 @@ class _guard(object):
         """Restore original file contents"""
         self._restore_original_content()
 
-    def _store_original_content(self):
-        path = self._path
-        orignal_file_contents = []
-        with open(path, 'r') as file:
-            for line in file:
-                orignal_file_contents.append(line)
+    def _set_up_tmp_dir_if_needed(self):
+        if self._tmp_dir is None:
+            self._tmp_dir = tempfile.TemporaryDirectory(prefix='fileguard_')
 
-        self._original[path].append(orignal_file_contents)
+    def _cleanup_tmp_dir_if_needed(self, path):
+        if len(self._original[path]) == 0:
+            self._tmp_dir.cleanup()
+            self._tmp_dir = None
+
+    def _store_original_content(self):
+        self._set_up_tmp_dir_if_needed()
+
+        tmp_file_name = uuid.uuid4().hex
+
+        original_path = self._path
+        temp_path = os.path.join(self._tmp_dir.name, tmp_file_name)
+        shutil.copy2(original_path, temp_path)
+
+        self._original[original_path].append(temp_path)
 
     def _restore_original_content(self):
         path = self._path
-        orignal_file_contents = self._original[path].pop()
+        tmp_file_path = self._original[path].pop()
+        shutil.copy2(tmp_file_path, path)
 
-        with open(path, 'w') as file:
-            for line in orignal_file_contents:
-                file.write(line)
+        self._cleanup_tmp_dir_if_needed(path)
 
     def decorate_callable(self, func):
         @wraps(func)

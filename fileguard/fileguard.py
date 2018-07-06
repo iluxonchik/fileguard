@@ -3,7 +3,9 @@ import uuid
 import shutil
 import ntpath
 import tempfile
+import distutils.dir_util
 from functools import wraps
+from .utils import path_is_dir
 from types import FunctionType
 from collections import defaultdict
 
@@ -45,15 +47,25 @@ class _guard(object):
         tmp_file_name = uuid.uuid4().hex
 
         original_path = self._path
-        temp_path = os.path.join(self._tmp_dir.name, tmp_file_name)
-        shutil.copy2(original_path, temp_path)
+        is_dir = path_is_dir(original_path)
 
-        self._original[original_path].append(temp_path)
+        temp_path = os.path.join(self._tmp_dir.name, tmp_file_name)
+        if is_dir:
+            # copy directory
+            distutils.dir_util.copy_tree(original_path, temp_path)
+        else:
+            # copy file
+            shutil.copy2(original_path, temp_path)
+
+        self._original[original_path].append((temp_path, is_dir))
 
     def _restore_original_content(self):
         path = self._path
-        tmp_file_path = self._original[path].pop()
-        shutil.copy2(tmp_file_path, path)
+        tmp_file_path, is_dir = self._original[path].pop()
+        if is_dir:
+            distutils.dir_util.copy_tree(tmp_file_path, path)
+        else:
+            shutil.copy2(tmp_file_path, path)
 
         self._cleanup_tmp_dir_if_needed(path)
 

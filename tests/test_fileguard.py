@@ -425,3 +425,82 @@ class TestFileGuardDecoratorMultipleFiles(unittest.TestCase):
         function_that_changes_the_file()
         self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
         self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+
+
+class TestFileGuardDecoratorDirectory(unittest.TestCase):
+
+    DIRECTORY_PATH = './tests/resources/dir_to_guard/'
+    TEST_TEXT_FILE_1_PATH = os.path.join('./tests/resources/dir_to_guard/', 'test_text_file_1.txt')
+    TEST_FILE_1_CONTENTS = ['would\n', 'you do it\n', 'if my name was\n', 'dre\n']
+
+    TEST_TEXT_FILE_2_PATH = os.path.join('./tests/resources/dir_to_guard/', 'test_text_file_2.txt')
+    TEST_FILE_2_CONTENTS = ['throw\n', 'it up\n', 'for the king\n', 'of L.A.\n']
+
+
+    def setUp(self):
+
+        if not os.path.exists(self.DIRECTORY_PATH):
+            os.makedirs(self.DIRECTORY_PATH)
+
+        with open(self.TEST_TEXT_FILE_1_PATH, 'w') as file:
+            file.writelines(self.TEST_FILE_1_CONTENTS)
+
+        with open(self.TEST_TEXT_FILE_2_PATH, 'w') as file:
+            file.writelines(self.TEST_FILE_2_CONTENTS)
+
+    def tearDown(self):
+        shutil.rmtree(self.DIRECTORY_PATH, ignore_errors=True)
+
+    def _assert_file_content_equals(self, path, lines):
+        with open(path, 'r') as file:
+            file_contents = file.readlines()
+
+        self.assertEqual(len(lines), len(file_contents))
+
+        for i in range(len(lines)):
+            self.assertEqual(lines[i], file_contents[i], f'File differs in line {i}')
+
+    def test_directory_contents_resotred_on_file_change(self):
+        @guard(self.DIRECTORY_PATH)
+        def change_directory_contents():
+            lines_to_write = ['of course\n', 'I would\n']
+
+            with open(self.TEST_TEXT_FILE_1_PATH, 'w') as file:
+                file.writelines(lines_to_write)
+
+            os.remove(self.TEST_TEXT_FILE_2_PATH)
+
+            is_file_exits = os.path.exists(self.TEST_TEXT_FILE_2_PATH)
+            self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, lines_to_write)
+            self.assertFalse(is_file_exits, 'File was not removed')
+
+        change_directory_contents()
+        dir = Path(self.DIRECTORY_PATH)
+        self.assertTrue(dir.is_dir(), 'Directory not found')
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+
+    def test_directory_contents_resotred_on_directory_delete(self):
+        @guard(self.DIRECTORY_PATH)
+        def delete_directory():
+            shutil.rmtree(self.DIRECTORY_PATH)
+
+            dir = Path(self.DIRECTORY_PATH)
+            self.assertFalse(dir.exists(), 'Path not deleted')
+
+        delete_directory()
+        dir = Path(self.DIRECTORY_PATH)
+        self.assertTrue(dir.is_dir(), 'Directory not found')
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+
+    def test_directory_contents_resotred_on_directory_unchanged(self):
+        @guard(self.DIRECTORY_PATH)
+        def do_nothing():
+            pass
+
+        do_nothing()
+        dir = Path(self.DIRECTORY_PATH)
+        self.assertTrue(dir.is_dir(), 'Directory not found')
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)

@@ -12,9 +12,10 @@ from collections import defaultdict
 
 class _guard(object):
 
-    def __init__(self, path):
-        self._path = path
-        self._original = {self._path: []}
+    def __init__(self, paths):
+        self._original = {}
+        for path in paths:
+            self._original[path] = []
         self._tmp_dir = None
 
     def __call__(self, func):
@@ -36,38 +37,44 @@ class _guard(object):
         if self._tmp_dir is None:
             self._tmp_dir = tempfile.TemporaryDirectory(prefix='fileguard_')
 
-    def _cleanup_tmp_dir_if_needed(self, path):
-        if len(self._original[path]) == 0:
-            self._tmp_dir.cleanup()
-            self._tmp_dir = None
+    def _cleanup_tmp_dir_if_needed(self):
+        for path in self._original:
+            if len(self._original[path]) == 0:
+                c = self._original[path]
+            else:
+                return
+
+        self._tmp_dir.cleanup()
+        self._tmp_dir = None
 
     def _store_original_content(self):
         self._set_up_tmp_dir_if_needed()
 
-        tmp_file_name = uuid.uuid4().hex
 
-        original_path = self._path
-        is_dir = path_is_dir(original_path)
+        for path in self._original:
+            is_dir = path_is_dir(path)
 
-        temp_path = os.path.join(self._tmp_dir.name, tmp_file_name)
-        if is_dir:
-            # copy directory
-            distutils.dir_util.copy_tree(original_path, temp_path)
-        else:
-            # copy file
-            shutil.copy2(original_path, temp_path)
+            tmp_file_name = uuid.uuid4().hex
+            temp_path = os.path.join(self._tmp_dir.name, tmp_file_name)
+            if is_dir:
+                # copy directory
+                distutils.dir_util.copy_tree(path, temp_path)
+            else:
+                # copy file
+                shutil.copy2(path, temp_path)
 
-        self._original[original_path].append((temp_path, is_dir))
+            self._original[path].append((temp_path, is_dir))
 
     def _restore_original_content(self):
-        path = self._path
-        tmp_file_path, is_dir = self._original[path].pop()
-        if is_dir:
-            distutils.dir_util.copy_tree(tmp_file_path, path)
-        else:
-            shutil.copy2(tmp_file_path, path)
+        for path in self._original:
+            tmp_file_path, is_dir = self._original[path].pop()
+            if is_dir:
+                distutils.dir_util.copy_tree(tmp_file_path, path)
+            else:
+                shutil.copy2(tmp_file_path, path)
 
-        self._cleanup_tmp_dir_if_needed(path)
+            if len(self._original[path]) == 0:
+                self._cleanup_tmp_dir_if_needed()
 
     def decorate_callable(self, func):
         @wraps(func)
@@ -99,7 +106,7 @@ class _guard(object):
             setattr(klass, attr, wrapped)
         return klass
 
-def guard(path):
+def guard(*paths):
     """Preserve the contents of a file.
 
     Can be used as a function decorator, a context manager or a class decorator.
@@ -111,4 +118,4 @@ def guard(path):
         path-like, such as a string. In general, any object accepted by
         `pathlib.Path` can be used.
     """
-    return _guard(path)
+    return _guard(paths)

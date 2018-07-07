@@ -7,15 +7,13 @@ import distutils.dir_util
 from functools import wraps
 from .utils import path_is_dir
 from types import FunctionType
-from collections import defaultdict
-
 
 class _guard(object):
 
     def __init__(self, paths):
-        self._original = {}
+        self._backup = {}
         for path in paths:
-            self._original[path] = []
+            self._backup[path] = []
         self._tmp_dir = None
 
     def __call__(self, func):
@@ -26,32 +24,35 @@ class _guard(object):
 
     def __enter__(self):
         """Store original file contents"""
-        self._store_original_content()
+        self._store_backup_content()
         return self
 
     def __exit__(self, *exc_info):
         """Restore original file contents"""
-        self._restore_original_content()
+        self._restore_backup_content()
 
     def _set_up_tmp_dir_if_needed(self):
         if self._tmp_dir is None:
             self._tmp_dir = tempfile.TemporaryDirectory(prefix='fileguard_')
 
     def _cleanup_tmp_dir_if_needed(self):
-        for path in self._original:
-            if len(self._original[path]) == 0:
-                c = self._original[path]
+        """
+        Remove the temp directory only if all of the fileguarded files have
+        been restored, i.e. if there are no remaining backups to restore.
+        """
+        for path in self._backup:
+            if len(self._backup[path]) == 0:
+                c = self._backup[path]
             else:
                 return
 
         self._tmp_dir.cleanup()
         self._tmp_dir = None
 
-    def _store_original_content(self):
+    def _store_backup_content(self):
         self._set_up_tmp_dir_if_needed()
 
-
-        for path in self._original:
+        for path in self._backup:
             is_dir = path_is_dir(path)
 
             tmp_file_name = uuid.uuid4().hex
@@ -63,17 +64,20 @@ class _guard(object):
                 # copy file
                 shutil.copy2(path, temp_path)
 
-            self._original[path].append((temp_path, is_dir))
+            self._backup[path].append((temp_path, is_dir))
 
-    def _restore_original_content(self):
-        for path in self._original:
-            tmp_file_path, is_dir = self._original[path].pop()
+    def _restore_backup_content(self):
+        for path in self._backup:
+            tmp_file_path, is_dir = self._backup[path].pop()
             if is_dir:
                 distutils.dir_util.copy_tree(tmp_file_path, path)
             else:
                 shutil.copy2(tmp_file_path, path)
 
-            if len(self._original[path]) == 0:
+            if len(self._backup[path]) == 0:
+                # a little optimization: only try to clean the directory up
+                # if there is a gurantee that at lest one file backup list
+                # is empty.
                 self._cleanup_tmp_dir_if_needed()
 
     def decorate_callable(self, func):
@@ -111,11 +115,13 @@ def guard(*paths):
 
     Can be used as a function decorator, a context manager or a class decorator.
     If used as a class decorator, all user-defined functions will be decorated,
-    i.e. all user functions will be file-guarded.
+    i.e. all user functions will be file-guarded. You can pass multiple files
+    to this function: all of the specified files and/or directories will
+    be guarded.
 
     Args:
-        path (path-like): The path of the file to be guarded. It must be
-        path-like, such as a string. In general, any object accepted by
-        `pathlib.Path` can be used.
+        paths ([path-like [path-like ...]]): The path (or list of paths) of
+        the file to be guarded. It must be path-like, such as a string.
+        In general, any object accepted by `pathlib.Path` can be used.
     """
     return _guard(paths)

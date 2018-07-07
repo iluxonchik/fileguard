@@ -46,48 +46,48 @@ class TestFileGuardDecorator(unittest.TestCase):
 
 
     def test_guard_if_function_throws_exception_text_file(self):
-            @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
-            def function_that_changes_the_file():
-                lines_to_write = ['of course\n', 'I would\n']
-                self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
-
-                with open(TestFileGuardDecorator.TEST_TEXT_FILE_PATH, 'w') as file:
-                    file.writelines(lines_to_write)
-
-                self._assert_file_content_equals(lines_to_write)
-                raise Exception('Something happened #Windows10')
-
-            with self.assertRaises(Exception):
-                function_that_changes_the_file()
+        @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+        def function_that_changes_the_file():
+            lines_to_write = ['of course\n', 'I would\n']
             self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
+
+            with open(TestFileGuardDecorator.TEST_TEXT_FILE_PATH, 'w') as file:
+                file.writelines(lines_to_write)
+
+            self._assert_file_content_equals(lines_to_write)
+            raise Exception('Something happened #Windows10')
+
+        with self.assertRaises(Exception):
+            function_that_changes_the_file()
+        self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
 
 
     def test_guard_if_function_not_changes_text_file(self):
 
-                @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
-                def function_that_changes_the_file():
-                    pass
+        @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+        def function_that_changes_the_file():
+            pass
 
-                function_that_changes_the_file()
-                self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
+        function_that_changes_the_file()
+        self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
 
     def test_guard_deleted_file_restores_contents_test_file(self):
-            @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
-            def function_that_deletes_the_file():
-                os.remove(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+        @guard(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+        def function_that_deletes_the_file():
+            os.remove(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
 
-                # make sure that the file does not exist after running the function
-                is_file = path.is_file()
-                self.assertFalse(is_file, 'File does exist.')
-
-            # make sure that the file is existent
-            path = Path(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+            # make sure that the file does not exist after running the function
             is_file = path.is_file()
-            self.assertTrue(is_file, 'File does not exist.')
+            self.assertFalse(is_file, 'File does exist.')
 
-            function_that_deletes_the_file()
+        # make sure that the file is existent
+        path = Path(TestFileGuardDecorator.TEST_TEXT_FILE_PATH)
+        is_file = path.is_file()
+        self.assertTrue(is_file, 'File does not exist.')
 
-            self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
+        function_that_deletes_the_file()
+
+        self._assert_file_content_equals(TestFileGuardDecorator.TEST_FILE_CONTENTS)
 
     def test_that_decorator_calls_funcion(self):
         value_1 = 'uno'
@@ -407,7 +407,7 @@ class TestFileGuardDecoratorMultipleFiles(unittest.TestCase):
         for i in range(len(lines)):
             self.assertEqual(lines[i], file_contents[i], f'File differs in line {i}')
 
-    def test_guard_change_two_text_file(self):
+    def test_guard_change_two_text_files(self):
         @guard(TestFileGuardDecoratorMultipleFiles.TEST_TEXT_FILE_2_PATH)
         @guard(TestFileGuardDecoratorMultipleFiles.TEST_TEXT_FILE_1_PATH)
         def function_that_changes_the_file():
@@ -425,6 +425,32 @@ class TestFileGuardDecoratorMultipleFiles(unittest.TestCase):
         function_that_changes_the_file()
         self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
         self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+
+    def test_guard_change_two_text_files_multiple_arguments(self):
+        @guard(TestFileGuardDecoratorMultipleFiles.TEST_TEXT_FILE_1_PATH, TestFileGuardDecoratorMultipleFiles.TEST_TEXT_FILE_2_PATH)
+        def function_that_changes_the_file():
+            lines_to_write = ['of course\n', 'I would\n']
+
+            with open(self.TEST_TEXT_FILE_1_PATH, 'w') as file:
+                file.writelines(lines_to_write)
+
+            with open(self.TEST_TEXT_FILE_2_PATH, 'w') as file:
+                file.writelines(lines_to_write)
+
+            self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, lines_to_write)
+            self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, lines_to_write)
+
+
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+
+        function_that_changes_the_file()
+
+
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_2_PATH, self.TEST_FILE_2_CONTENTS)
+        self._assert_file_content_equals(self.TEST_TEXT_FILE_1_PATH, self.TEST_FILE_1_CONTENTS)
+
+
 
 
 class TestFileGuardDecoratorDirectory(unittest.TestCase):
